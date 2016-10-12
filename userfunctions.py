@@ -1,5 +1,10 @@
 import connectfour
 
+def start_game()->connectfour.GameState:
+    game = connectfour.new_game()
+    display_board(game)
+    return game
+
 def player_drop(game: connectfour.GameState) -> connectfour.GameState: #better implementation using catch_drop, but not catching exceptions
     col = _int_input()
     game = _catch_drop(game, col)

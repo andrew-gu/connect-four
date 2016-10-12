@@ -1,10 +1,7 @@
 import connectfour
 import userfunctions
 
-def start_game()->connectfour.GameState:
-    game = connectfour.new_game()
-    userfunctions.display_board(game)
-    return game
+
 
 def get_move()->int:
     move = input('Pop or Drop? (P/D)')
@@ -17,7 +14,7 @@ def get_move()->int:
         return get_move()
 
 def main():
-    game = start_game()
+    game = userfunctions.start_game()
     while True:
         move = get_move()
         if move == 0:

@@ -1,14 +1,12 @@
 import socket
 import connectfour
 import console
-import collections
 
-Client = collections.namedtuple('Client', ['conn','instream','outstream'])
-
-def input_host()-> Client: #RETURNS None IF EXCEPTION IS RAISED
+def input_host(): #RETURNS None IF EXCEPTION IS RAISED
     host = input('Host: ')
     port = int(input('Port: '))
     client = socket.socket()
+    client.settimeout(0.5)
     try:
         client.connect(('woodhouse.ics.uci.edu',4444))
     except socket.gaierror:
@@ -20,18 +18,7 @@ def input_host()-> Client: #RETURNS None IF EXCEPTION IS RAISED
     except ConnectionRefusedError:
         print('ERROR: Connection Refused')
     else:
-        cIn = client.makefile('r')
-        cOut = client.makefile('w')
-        return Client(conn=client, instream=cIn, outstream=cOut)
-
-def ics_connect(c: Client, user: str): #fix later
-    c.outstream.write('I32CFSP_HELLO ' + user + '\r\n')
-    c.outstream.flush()
-    serverMsg = c.instream.readline()[:-1]
-    print(serverMsg)
-    c.outstream.write('AI_GAME\r\n')
-    serverMsg = c.instream.readline()[:-1]
-    print(serverMsg)
+        return client
 
 def input_username()->str:
     user = input('Username: ')
@@ -40,22 +27,56 @@ def input_username()->str:
         input_username()
     else:
         return user
+
+def ics_connect(c: socket, user: str):
+    msg = 'I32CFSP_HELLO ' + user + '\r\n'
+    c.send(msg.encode())
+    serverMsg = c.recv(1024).decode()
+    print(serverMsg)
+    msg = 'AI_GAME\r\n'
+    c.send(msg.encode())
+    serverMsg = c.recv(1024).decode()
+    print(serverMsg)
+
+def send_move(c: socket.socket, col: int):
+    msg = 'DROP ' + str(col)
+    _send_msg(c, msg)
+
+def recv_move(c: socket.socket)-> int:
+    msgs = _recv_msgs(c)
+    if msgs[0] == 'OKAY':
+        return msgs[1][-1]
+    elif msgs[0] == 'INVALID':
+        return -1
+
 def main():
     user = input_username()
     c = input_host()
     if c == None:
         print('fatal error')
         return
+    ics_connect(c,user)
+    _send_msg(c, 'DROP 4')
+    _recv_msgs(c)
 
-    while(True):
-        msg = input() + '\r\n'
-        c.outstream.write(msg)
-        c.outstream.flush()
-        serverMsg = c.instream.readline()[:-1]
-        while serverMsg != None:
-            print(serverMsg)
-            serverMsg = c.instream.readline()[:-1]
+def _send_msg(c: socket.socket, msg: str):
+    msg = msg + '\r\n'
+    c.send(msg.encode())
 
+def _recv_msg(c: socket.socket)->str:
+    msg = c.recv(2048).decode()
+    msg = msg[:-1]
+    print(msg)
+    return msg
+
+def _recv_msgs(c: socket.socket)->list:
+    msgs = list()
+    while True:
+        try:
+            msgs.append(_recv_msg(c))
+        except socket.timeout:
+            break
+    return msgs
 
 if __name__ == '__main__':
     main()
