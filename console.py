@@ -2,35 +2,26 @@ import connectfour
 import userfunctions
 
 
-
-def get_move()->int:
-    move = input('Pop or Drop? (P/D)')
-    if move == 'P':
-        return 0
-    elif move == 'D':
-        return 1
-    else:
-        print('ERROR: Invalid Input')
-        return get_move()
+def console_drop(game: connectfour.GameState) -> connectfour.GameState: #better implementation using catch_drop, but not catching exceptions
+    col = userfunctions.int_input()
+    game = userfunctions.catch_drop(game, col)
+    userfunctions.display_board(game)
+    return game
+def console_pop(game: connectfour.GameState) -> connectfour.GameState:
+    col = userfunctions.int_input()
+    game = userfunctions.catch_pop(game, col)
+    userfunctions.display_board(game)
+    return game
 
 def main():
     game = userfunctions.start_game()
-    while True:
-        move = get_move()
+    while userfunctions.check_winner(game) is False:
+        move = userfunctions.get_move()
         if move == 0:
-            game = userfunctions.player_pop(game)
+            game = console_pop(game)
         elif move == 1:
-            game = userfunctions.player_drop(game)
-        try:
-            connectfour.drop(game,0)
-        except connectfour.GameOverError:
-            winner = connectfour.winner(game)
-            print('Game Over')
-            if winner == 1:
-                print('Red Wins')
-            elif winner == 2:
-                print('Yellow Wins')
-            break
+            game = console_drop(game)
+
 
 
 

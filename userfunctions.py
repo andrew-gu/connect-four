@@ -5,13 +5,9 @@ def start_game()->connectfour.GameState:
     display_board(game)
     return game
 
-def player_drop(game: connectfour.GameState) -> connectfour.GameState: #better implementation using catch_drop, but not catching exceptions
-    col = _int_input()
-    game = _catch_drop(game, col)
-    display_board(game)
-    return game
 
-def _catch_drop(game: connectfour.GameState, col: int)->connectfour.GameState:
+
+def catch_drop(game: connectfour.GameState, col: int)->connectfour.GameState:
     try:
         game = connectfour.drop(game, col)
     except ValueError:
@@ -23,13 +19,8 @@ def _catch_drop(game: connectfour.GameState, col: int)->connectfour.GameState:
     finally:
         return game
 
-def player_pop(game: connectfour.GameState) -> connectfour.GameState:
-    col = _int_input()
-    game = _catch_pop(game, col)
-    display_board(game)
-    return game
 
-def _catch_pop(game:connectfour.GameState, col: int) -> connectfour.GameState:
+def catch_pop(game:connectfour.GameState, col: int) -> connectfour.GameState:
     try:
         game = connectfour.pop(game, col)
     except ValueError:
@@ -41,13 +32,13 @@ def _catch_pop(game:connectfour.GameState, col: int) -> connectfour.GameState:
     finally:
         return game
 
-def _int_input()->int:
+def int_input()->int:
     result = int()
     try:
         result = int(input('Select a column (1-7): '))
     except (TypeError, ValueError):
         print('ERROR: Invalid Input')
-        return _int_input()
+        return int_input()
     else:
         return result - 1
 
@@ -66,3 +57,26 @@ def display_board(g: connectfour.GameState):
             elif col[i] == 2:
                 print('Y', end=' ')
         print()
+
+def get_move()->int:
+    move = input('Pop or Drop? (P/D)')
+    if move == 'P':
+        return 0
+    elif move == 'D':
+        return 1
+    else:
+        print('ERROR: Invalid Input')
+        return get_move()
+
+def check_winner(game: connectfour.GameState)->bool:
+    try:
+        connectfour.drop(game,0)
+        return False
+    except connectfour.GameOverError:
+        winner = connectfour.winner(game)
+        print('Game Over')
+        if winner == 1:
+            print('Red Wins')
+        elif winner == 2:
+            print('Yellow Wins')
+        return True
