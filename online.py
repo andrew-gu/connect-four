@@ -1,13 +1,24 @@
 import socket
-import connectfour
-import console
+import collections
 
-def input_host(): #RETURNS None IF EXCEPTION IS RAISED
+Client = collections.namedtuple('Client',['connection','instream','outstream'])
+
+def input_host()-> Client:
+    '''
+    Connects to server, creates i/o stream, and returns in a Client object
+    Terminates if connection fails
+    '''
+    valid_port = False
     host = input('Host: ')
-    port = int(input('Port: '))
+    while not valid_port:
+        try:
+            port = int(input('Port: '))
+            valid_port = True
+        except (ValueError,TypeError):
+            print('ERROR: Invalid Port')
     client = socket.socket()
-    client.settimeout(0.5)
     try:
+        #client.connect((host,port))
         client.connect(('woodhouse.ics.uci.edu',4444))
     except socket.gaierror:
         print('ERROR: Failed to get address info')
@@ -18,99 +29,118 @@ def input_host(): #RETURNS None IF EXCEPTION IS RAISED
     except ConnectionRefusedError:
         print('ERROR: Connection Refused')
     else:
-        return client
+        client_io = _create_io(client)
+        return client_io
 
-def input_username()->str:
-    user = input('Username: ')
-    if user.find(' ') != -1:
-        print('ERROR: No spaces in usernames')
-        input_username()
-    else:
-        return user
+def ics_connect(client: Client):
+    '''
+    connects to woodhouse ics server with connect four protocol
+    closes connection if invalid server response
+    '''
+    user = _input_username()
+    msg = 'I32CFSP_HELLO ' + user
+    _send_msg(client, msg)
+    response = _recv_msg(client)
+    if response != 'WELCOME ' + user:
+        close_client(client)
+    print('SERVER: ' + response)
+    msg = 'AI_GAME'
+    _send_msg(client, msg)
+    response = _recv_msg(client)
+    if response != 'READY':
+        close_client(client)
+    print('SERVER: ' + response)
 
-def ics_connect(c: socket, user: str):
-    msg = 'I32CFSP_HELLO ' + user + '\r\n'
-    c.send(msg.encode())
-    serverMsg = c.recv(1024).decode()
-    print(serverMsg)
-    msg = 'AI_GAME\r\n'
-    c.send(msg.encode())
-    serverMsg = c.recv(1024).decode()
-    print(serverMsg)
-
-def send_move(c: socket.socket, col: int, move: int):
-    msg = str()
+def send_move(client: Client, col: int, move: int):
+    '''
+    sends move with correct syntax to server
+    '''
     if move == 0:
-        msg = 'POP ' + str(col)
+        _send_msg(client,'POP ' + str(col))
     elif move == 1:
-        msg = 'DROP ' + str(col)
-    _send_msg(c, msg)
+        _send_msg(client,'DROP ' + str(col))
 
-def recv_move(c: socket.socket)-> int:
+def parse_msg(client: Client)->list:
     '''
-    returns and parses server response into integers
-    <10 is pop
-    >= 10 is drop
-    ones place represents col number
-    -1 is invalid move, -2 is game over
+    returns list of len 2
+    1st element: -1 if invalid user move, 0-6 if server pop, 10-16 if server drop
+    2nd element: -1 if bad input, 0 if ready, 1 if red win, 2 if yellow win
     '''
-    msgs = _recv_msgs(c)
-    result = int()
-    if msgs[0] == 'OKAY':
-        if msgs[1].find('POP') != -1:
-            col = int(msgs[1][4]) - 1
-            result += col #add column #
-        elif msgs[1].find('DROP') != -1:
-            result += 10 #result is from 10 to 16
-            col = int(msgs[1][5]) - 1
-            result += col
-        return result
-    elif msgs[0] == 'INVALID':
-        return -1
-    elif msgs[0].find('WINNER') != -1:
-        return -2
+    msg_list = [0]*2
+    msg = _recv_msg(client)
+    print('SERVER: ' + msg)
 
-def main():
-    user = input_username()
-    c = input_host()
-    if c == None:
-        print('FATAL ERROR: Failed to connect')
-        return
-    ics_connect(c,user)
-    _send_msg(c, 'DROP 4')
-    l = _recv_msgs(c)
-    print(l)
+    if msg == 'OKAY':
+        move = _recv_msg(client)
+        result = _recv_msg(client)
+        print('SERVER: ' + move)
+        print('SERVER: ' + result)
+        #parse move and check if valid syntax
+        if move[0:4] == 'POP ':
+            try:
+                msg_list[0] = int(move[-1]) - 1
+            except (TypeError, ValueError, NameError):
+                msg_list[1] = -1
+        elif move[0:5] == 'DROP ':
+            try:
+                msg_list[0] = int(move[-1]) + 9
+            except (TypeError, ValueError, NameError):
+                msg_list[1] = -1
+        else:
+            msg_list[1] = -1
 
-def _send_msg(c: socket.socket, msg: str):
-    msg = msg + '\r\n'
-    c.send(msg.encode())
-
-def _recv_msg(c: socket.socket)->str:
-    msg = c.recv(2048).decode()
-    return msg
-
-def _recv_msgs(c: socket.socket)->list:
-    msgs = list()
-    while True:
-        try:
-            removed = _remove_end_line(_recv_msg(c))
-            for i in removed:
-                msgs.append(i)
-                print(i)
-        except socket.timeout:
-            #print('*****TIMED OUT*****')
-            break
-    return msgs
-
-def _remove_end_line(s: str)-> list:
-    result = list()
-    while True:
-        result.append(s[0:s.index('\r\n')])
-        s = s[s.index('\r\n')+2:]
-        if len(s) == 0:
-            break
-    return result
+        #parse result and check if valid syntax
+        if result.find('WINNER') != -1:
+            if result == 'WINNER_RED':
+                msg_list[1] = 1
+            elif result == 'WINNER_YELLOW':
+                msg_list[1] = 2
+        elif result == 'READY':
+            msg_list[1] = 0
+        else:
+            msg_list[1] = -1
 
 
-if __name__ == '__main__':
-    main()
+    elif msg == 'INVALID':
+        msg_list[0] = -1
+        result = _recv_msg(client)
+        print('SERVER: ' + result)
+        if result == 'READY':
+            msg_list[1] = 0
+        else:
+            msg_list[1] = -1
+
+
+    else:
+        msg_list[0] = -1
+        msg_list[1] = -1
+    #close sockets if bad move
+    if msg_list[1] == -1:
+        close_client(client)
+    return msg_list
+
+def _input_username()->str:
+    valid = False
+    user = str()
+    while not valid:
+        user = input('Enter Username: ')
+        if user.find(' ') != -1 or len(user) == 0:
+            print('ERROR: Invalid userame')
+        else:
+            valid = True
+    return user
+
+def _create_io(client: socket.socket)->Client:
+    return Client(client,client.makefile('r'),client.makefile('w'))
+
+def _send_msg(client: Client, msg: str):
+    client.outstream.write(msg + '\r\n')
+    client.outstream.flush()
+
+def _recv_msg(client: Client)->str:
+    return client.instream.readline()[:-1]
+
+def close_client(client: Client)->str:
+    client.instream.close()
+    client.outstream.close()
+    client.connection.close()

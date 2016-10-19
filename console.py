@@ -2,12 +2,18 @@ import connectfour
 import userfunctions
 
 
-def console_drop(game: connectfour.GameState) -> connectfour.GameState: #better implementation using catch_drop, but not catching exceptions
+def console_drop(game: connectfour.GameState) -> connectfour.GameState:
+    '''
+    Drops a piece in the console only game mode
+    '''
     col = userfunctions.int_input()
     game = userfunctions.catch_drop(game, col)
     userfunctions.display_board(game)
     return game
 def console_pop(game: connectfour.GameState) -> connectfour.GameState:
+    '''
+    Pops a piece in the console only game mode
+    '''
     col = userfunctions.int_input()
     game = userfunctions.catch_pop(game, col)
     userfunctions.display_board(game)

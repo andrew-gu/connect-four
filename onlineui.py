@@ -1,13 +1,11 @@
-import socket
 import connectfour
-import console
 import userfunctions
 import online
 
-def start_client():#Run after connecting to server & receiving 'READY'
-    game = userfunctions.start_game()
-
-def user_move(game: connectfour.GameState, c: socket.socket)-> connectfour.GameState:
+def user_move(game: connectfour.GameState, client: online.Client)-> connectfour.GameState:
+    '''
+    makes a move in the client-side game board and sends the move to the server
+    '''
     move = userfunctions.get_move()
     col = userfunctions.int_input()
     if move == 0:
@@ -15,41 +13,52 @@ def user_move(game: connectfour.GameState, c: socket.socket)-> connectfour.GameS
     elif move == 1:
         game = userfunctions.catch_drop(game, col)
     userfunctions.display_board(game)
-    online.send_move(c, col, move)
+    online.send_move(client, col + 1, move)#add 1 because int_input subtracts 1
     return game
 
-def server_move(game: connectfour.GameState, c: socket.socket)-> connectfour.GameState:
-    move = online.recv_move(c)
-    if move < 10 and move >= 0:
-        col = move
-        game = userfunctions.catch_pop(game, col)
-        userfunctions.display_board(game)
-        return game
-    elif move > 10:
-        col = move - 10
-        game = userfunctions.catch_drop(game, col)
-        userfunctions.display_board(game)
-        return game
-    elif move == -1: #invalid move
-        userfunctions.display_board(game)
-        return game
-    elif move == -2: #game over
-        return game
+def server_move(game: connectfour.GameState, client: online.Client)-> connectfour.GameState:
+    '''
+    Accepts a move from the server and updates it in the client side game board
+    '''
+    move = online.parse_msg(client)
+    if move[1] >= 0:
+        if move[0] < 10:
+            col = move[0]
+            game = userfunctions.catch_pop(game, col)
+            userfunctions.display_board(game)
+            return game
+        elif move[0] >= 10:
+            col = move[0] - 10
+            game = userfunctions.catch_drop(game, col)
+            userfunctions.display_board(game)
+            return game
+        elif move[0] == -1:
+            userfunctions.display_board(game)
+            return game
+
 
 def main():
-    user = online.input_username()
-    c = online.input_host()
-    if c == None:
+    client = online.input_host()
+    if client == None:
         print('FATAL ERROR: Failed to connect')
         return
-    online.ics_connect(c,user)
+    try:
+        online.ics_connect(client)
+    except ValueError:
+        print('FATAL ERROR: Connection closed')
+        return
     game = userfunctions.start_game()
     while userfunctions.check_winner(game) is False:
-        game = user_move(game, c)
-        if userfunctions.check_winner(game) is True:
+        try:
+            game = user_move(game, client)
+            if userfunctions.check_winner(game) is True:
+                break
+            game = server_move(game, client)
+        except ValueError:
+            print('FATAL ERROR: Connection closed')
             break
-        game = server_move(game, c)
 
+    online.close_client(client)
 
 if __name__ == '__main__':
     main()

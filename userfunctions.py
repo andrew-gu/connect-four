@@ -1,6 +1,9 @@
 import connectfour
 
 def start_game()->connectfour.GameState:
+    '''
+    creates new game and displays a blank board
+    '''
     game = connectfour.new_game()
     display_board(game)
     return game
@@ -8,6 +11,9 @@ def start_game()->connectfour.GameState:
 
 
 def catch_drop(game: connectfour.GameState, col: int)->connectfour.GameState:
+    '''
+    Drops a piece in a given column and returns any possible errors
+    '''
     try:
         game = connectfour.drop(game, col)
     except ValueError:
@@ -21,6 +27,9 @@ def catch_drop(game: connectfour.GameState, col: int)->connectfour.GameState:
 
 
 def catch_pop(game:connectfour.GameState, col: int) -> connectfour.GameState:
+    '''
+    pops a piece from a given column and returns any possible errors
+    '''
     try:
         game = connectfour.pop(game, col)
     except ValueError:
@@ -33,18 +42,24 @@ def catch_pop(game:connectfour.GameState, col: int) -> connectfour.GameState:
         return game
 
 def int_input()->int:
+    '''
+    Asks for a valid input for a column
+    '''
     result = int()
-    try:
-        result = int(input('Select a column (1-7): '))
-    except (TypeError, ValueError):
-        print('ERROR: Invalid Input')
-        return int_input()
-    else:
-        return result - 1
+    valid = False
+    while not valid:
+        try:
+            result = int(input('Select a column (1-7): '))
+            valid = True
+        except (TypeError, ValueError):
+            print('ERROR: Invalid Input')
 
-def display_board(g: connectfour.GameState):
+    return result - 1#connect four library functions are 0-indexed
+
+def display_board(game: connectfour.GameState):
+
     '''Displays current board when called'''
-    col_array = g.board
+    col_array = game.board
     for n in range(1, connectfour.BOARD_COLUMNS+1): #display col #s
         print(n, end=' ')
     print()
@@ -59,7 +74,10 @@ def display_board(g: connectfour.GameState):
         print()
 
 def get_move()->int:
-    move = input('Pop or Drop? (P/D)')
+    '''
+    Asks user for choice of move
+    '''
+    move = input('Pop or Drop? (P/D)').upper()
     if move == 'P':
         return 0
     elif move == 'D':
@@ -69,8 +87,15 @@ def get_move()->int:
         return get_move()
 
 def check_winner(game: connectfour.GameState)->bool:
+    '''
+    Checks for a winner in the current gamestate by trying to drop in a column
+    '''
     try:
-        connectfour.drop(game,0)
+        for i in range(0,7):
+            try:
+                connectfour.drop(game, i)
+            except connectfour.InvalidMoveError:
+                pass
         return False
     except connectfour.GameOverError:
         winner = connectfour.winner(game)
