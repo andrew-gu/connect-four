@@ -50,6 +50,9 @@ def int_input()->int:
     while not valid:
         try:
             result = int(input('Select a column (1-7): '))
+            #if result not in range(1,8):
+            #    print('ERROR: Invalid Column')
+            #else:
             valid = True
         except (TypeError, ValueError):
             print('ERROR: Invalid Input')

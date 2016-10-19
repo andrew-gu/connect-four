@@ -17,6 +17,8 @@ def input_host()-> Client:
         except (ValueError,TypeError):
             print('ERROR: Invalid Port')
     client = socket.socket()
+    #timeout if socket blocks for >5 seconds
+    client.settimeout(5)
     try:
         #client.connect((host,port))
         client.connect(('woodhouse.ics.uci.edu',4444))
@@ -31,12 +33,13 @@ def input_host()-> Client:
     else:
         client_io = _create_io(client)
         return client_io
+        
 
 def ics_connect(client: Client):
     '''
     connects to woodhouse ics server with connect four protocol
     closes connection if invalid server response
-    '''
+    ''' 
     user = _input_username()
     msg = 'I32CFSP_HELLO ' + user
     _send_msg(client, msg)
@@ -63,14 +66,15 @@ def send_move(client: Client, col: int, move: int):
 def parse_msg(client: Client)->list:
     '''
     returns list of len 2
-    1st element: -1 if invalid user move, 0-6 if server pop, 10-16 if server drop
-    2nd element: -1 if bad input, 0 if ready, 1 if red win, 2 if yellow win
+    list[0]: -1 if invalid user move, 0-6 if server pop, 10-16 if server drop
+    list[1]: -1 if bad input, 0 if ready, 1 if red win, 2 if yellow win
     '''
     msg_list = [0]*2
     msg = _recv_msg(client)
-    print('SERVER: ' + msg)
-
+    
+    #Good move
     if msg == 'OKAY':
+        print('SERVER: ' + msg)
         move = _recv_msg(client)
         result = _recv_msg(client)
         print('SERVER: ' + move)
@@ -88,7 +92,6 @@ def parse_msg(client: Client)->list:
                 msg_list[1] = -1
         else:
             msg_list[1] = -1
-
         #parse result and check if valid syntax
         if result.find('WINNER') != -1:
             if result == 'WINNER_RED':
@@ -99,8 +102,7 @@ def parse_msg(client: Client)->list:
             msg_list[1] = 0
         else:
             msg_list[1] = -1
-
-
+    #Invalid move
     elif msg == 'INVALID':
         msg_list[0] = -1
         result = _recv_msg(client)
@@ -109,8 +111,7 @@ def parse_msg(client: Client)->list:
             msg_list[1] = 0
         else:
             msg_list[1] = -1
-
-
+    #bad input
     else:
         msg_list[0] = -1
         msg_list[1] = -1
@@ -120,6 +121,9 @@ def parse_msg(client: Client)->list:
     return msg_list
 
 def _input_username()->str:
+    '''
+    Asks for input for username and checks for validity
+    '''
     valid = False
     user = str()
     while not valid:
@@ -131,16 +135,28 @@ def _input_username()->str:
     return user
 
 def _create_io(client: socket.socket)->Client:
+    '''
+    Creates a namedtuple object for easy access to socket and i/o
+    '''
     return Client(client,client.makefile('r'),client.makefile('w'))
 
 def _send_msg(client: Client, msg: str):
+    '''
+    appends new line and carriage return to msg and flushes outstream buffer
+    '''
     client.outstream.write(msg + '\r\n')
     client.outstream.flush()
 
 def _recv_msg(client: Client)->str:
+    '''
+    receives a line of input from instream buffer and drops the new line char
+    '''
     return client.instream.readline()[:-1]
 
 def close_client(client: Client)->str:
+    '''
+    closes i/o streams and socket connection
+    '''
     client.instream.close()
     client.outstream.close()
     client.connection.close()

@@ -22,7 +22,7 @@ def server_move(game: connectfour.GameState, client: online.Client)-> connectfou
     '''
     move = online.parse_msg(client)
     if move[1] >= 0:
-        if move[0] < 10:
+        if move[0] < 10 and move[0] >= 0:
             col = move[0]
             game = userfunctions.catch_pop(game, col)
             userfunctions.display_board(game)
@@ -33,7 +33,6 @@ def server_move(game: connectfour.GameState, client: online.Client)-> connectfou
             userfunctions.display_board(game)
             return game
         elif move[0] == -1:
-            userfunctions.display_board(game)
             return game
 
 
